@@ -1,0 +1,17 @@
+{
+  "short_name": "DAB Tool",
+  "name": "Auktionshuset dab Field Tool",
+  "description": "An application to register lots for auction, with integrated camera support for capturing photos directly.",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#C00000",
+  "background_color": "#C00000"
+}

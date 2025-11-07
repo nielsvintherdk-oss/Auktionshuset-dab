@@ -1,0 +1,14 @@
+<svg width="512" height="512" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" version="1.1">
+  <rect x="5" y="5" width="90" height="90" rx="20" ry="20" fill="#C00000"/>
+  <text 
+    x="50%" 
+    y="50%" 
+    dominant-baseline="central" 
+    text-anchor="middle" 
+    fill="white" 
+    font-size="45" 
+    font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif" 
+    font-weight="300">
+      dab
+  </text>
+</svg>

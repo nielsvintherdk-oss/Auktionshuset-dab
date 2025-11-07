@@ -1,0 +1,7 @@
+{
+  "name": "Auktionshuset dab Field Tool",
+  "description": "An application to register lots for auction, with integrated camera support for capturing photos directly. This UI is a recreation based on an provided image.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
