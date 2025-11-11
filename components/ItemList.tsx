@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AuctionLot } from '../types';
-import { ClockIcon, LocationMarkerIcon, SpinnerIcon } from './icons';
-import Button, { playClickSound } from './Button';
+import { ClockIcon, LocationMarkerIcon, SpinnerIcon, TruckIcon, NoTruckIcon, ForkliftIcon, NoForkliftIcon, PalletLifterIcon, NoPalletLifterIcon, ChevronDownIcon, XIcon } from './icons';
+import Button, { playOpenModalSound } from './Button';
 import JSZip from 'jszip';
 import jsPDF from 'jspdf';
 
@@ -11,7 +11,14 @@ interface LotListProps {
   onDeleteLot: (lotId: string) => void;
   onCopyLot: (lotId: string) => void;
   currentUser: string;
+  activeFilter: string | null;
+  onClearFilter: () => void;
 }
+
+const formatLocation = (location: AuctionLot['location']) => {
+  if (!location || !location.street) return 'Ukendt lokation';
+  return `${location.street}, ${location.postalCode} ${location.city}`;
+};
 
 const formatAuctionEnd = (dateString: string, timeString: string) => {
   if (!dateString || !timeString) return 'Ikke fastsat';
@@ -25,6 +32,42 @@ const formatAuctionEnd = (dateString: string, timeString: string) => {
   };
   return new Intl.DateTimeFormat('da-DK', options).format(date);
 };
+
+const LogisticsIcons: React.FC<{ lot: AuctionLot }> = ({ lot }) => (
+    // FIX: Replaced invalid `title` prop on icons with a wrapper `div` that has a `title` attribute for tooltips.
+    <div className="flex items-center space-x-2">
+      <div title={lot.shippingAvailable ? "Forsendelse tilgængelig" : "Forsendelse ikke tilgængelig"}>
+        {lot.shippingAvailable
+          ? <TruckIcon className="w-7 h-7 text-green-600"/>
+          : <NoTruckIcon className="w-7 h-7" />}
+      </div>
+      <div title={lot.forkliftAvailable ? "Gaffeltruck til rådighed" : "Gaffeltruck ikke til rådighed"}>
+        {lot.forkliftAvailable
+          ? <ForkliftIcon className="w-7 h-7 text-gray-700" />
+          : <NoForkliftIcon className="w-7 h-7" />}
+      </div>
+      <div title={lot.palletLifterAvailable ? "Palleløfter til rådighed" : "Palleløfter ikke til rådighed"}>
+        {lot.palletLifterAvailable
+          ? <PalletLifterIcon className="w-7 h-7 text-green-600" />
+          : <NoPalletLifterIcon className="w-7 h-7" />}
+      </div>
+    </div>
+);
+
+const FormattedLotNumber: React.FC<{ lotNumber: string }> = ({ lotNumber }) => {
+    const match = lotNumber.match(/^(A)(\d{2})(.*)$/);
+    if (!match) {
+        return <span className="text-[#C00000]">{lotNumber}</span>;
+    }
+    return (
+        <span className="text-[#C00000]">
+            {match[1]}
+            <span className="text-blue-600 font-bold">{match[2]}</span>
+            {match[3]}
+        </span>
+    );
+};
+
 
 const LotCard: React.FC<{ lot: AuctionLot; onLotSelect: (lot: AuctionLot) => void; onDeleteLot: (lotId: string) => void; onCopyLot: (lotId: string) => void; }> = ({ lot, onLotSelect, onDeleteLot, onCopyLot }) => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -44,7 +87,7 @@ const LotCard: React.FC<{ lot: AuctionLot; onLotSelect: (lot: AuctionLot) => voi
   }, [lot.photos]);
 
   const handleSelect = () => {
-    playClickSound();
+    playOpenModalSound();
     onLotSelect(lot);
   };
 
@@ -56,7 +99,7 @@ const LotCard: React.FC<{ lot: AuctionLot; onLotSelect: (lot: AuctionLot) => voi
 
   return (
     <li 
-      className="bg-white border border-gray-200 rounded-lg shadow-sm flex items-start sm:items-center space-x-4 p-4 cursor-pointer transition-all duration-300 hover:shadow-xl hover:border-[#C00000]/30 relative"
+      className="bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col sm:flex-row items-start space-x-4 p-4 pb-12 sm:pb-4 cursor-pointer transition-all duration-300 hover:shadow-lg hover:border-[#C00000]/50 hover:-translate-y-1 relative"
       onClick={handleSelect}
       role="button"
       tabIndex={0}
@@ -64,73 +107,94 @@ const LotCard: React.FC<{ lot: AuctionLot; onLotSelect: (lot: AuctionLot) => voi
       aria-label={`Rediger Lot nummer ${lot.lotNumber}: ${lot.title}`}
     >
       {imageUrl ? (
-        <img src={imageUrl} alt={lot.title} className="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-lg bg-gray-100 flex-shrink-0" />
+        <img src={imageUrl} alt={lot.title} className="w-24 h-24 sm:w-28 sm:h-28 object-cover rounded-lg bg-stone-200 flex-shrink-0" />
       ) : (
-        <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-100 rounded-lg flex-shrink-0"></div>
+        <div className="w-24 h-24 sm:w-28 sm:h-28 bg-stone-200 rounded-lg flex-shrink-0"></div>
       )}
-      <div className="flex-grow">
-        <h3 className="font-bold text-xl text-gray-800">
-          <span className="text-[#C00000]">Lot #{lot.lotNumber}:</span> {lot.title}
+      <div className="flex-grow mt-2 sm:mt-0">
+        <h3 className="font-bold text-lg text-gray-900 leading-tight">
+          <FormattedLotNumber lotNumber={lot.lotNumber} />: {lot.title}
         </h3>
-        {lot.companyName && <p className="text-base text-gray-700 font-semibold">{lot.companyName}</p>}
-        <div className="flex items-center text-base text-gray-500 mt-1">
+        {lot.companyName && <p className="text-base text-gray-800 font-semibold">{lot.companyName}</p>}
+        <div className="flex items-center text-sm text-gray-500 mt-1">
           <LocationMarkerIcon className="w-4 h-4 mr-1.5 text-gray-400 flex-shrink-0" />
-          <span>{lot.location}</span>
+          <span>{formatLocation(lot.location)}</span>
         </div>
-        <p className="text-sm text-gray-500 font-medium mt-1">{lot.auctionType.join(', ')}</p>
-        <p className="text-base text-gray-600">{lot.category.join(', ')} - {lot.condition}</p>
-         <div className="flex items-center text-base text-gray-500 mt-1">
+         <div className="flex items-center text-sm text-gray-500 mt-1">
             <ClockIcon className="w-4 h-4 mr-1.5 text-gray-400 flex-shrink-0" />
             <span>Slutter: {formatAuctionEnd(lot.auctionEndDate, lot.auctionEndTime)}</span>
         </div>
         <p className="text-xs text-gray-400 mt-2">Registreret af: {lot.appraiser}</p>
       </div>
-      <div className="text-right flex-shrink-0">
-        <p className="text-lg font-semibold text-gray-900">
-          {lot.minimumPrice ? `${Number(lot.minimumPrice).toLocaleString('da-DK')} kr.` : 'Ikke fastsat'}
-        </p>
-        <p className="text-sm text-gray-500">Mindstepris</p>
-        <div className="mt-4 flex items-center justify-end space-x-2">
+      <div className="w-full sm:w-auto text-right flex-shrink-0 flex flex-row sm:flex-col items-end justify-between h-full mt-3 sm:mt-0">
+         <div>
+            <p className="text-lg font-semibold text-gray-900">
+              {lot.minimumPrice ? `${Number(lot.minimumPrice).toLocaleString('da-DK')} kr.` : 'Ikke fastsat'}
+            </p>
+            <p className="text-sm text-gray-500">Mindstepris</p>
+        </div>
+        <div className="mt-2">
+            <LogisticsIcons lot={lot} />
+        </div>
+      </div>
+       <div className="absolute bottom-2 right-2 flex items-center justify-end space-x-2">
             <Button
                 onClick={(e) => {
                     e.stopPropagation();
                     onCopyLot(lot.id);
                 }}
-                className="px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                className="px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
                 title="Kopiér lot"
             >
                 Kopiér
             </Button>
             <Button
+                sound="delete"
                 onClick={(e) => {
                     e.stopPropagation();
                     onDeleteLot(lot.id);
                 }}
-                className="px-3 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                className="px-3 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-full hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
             >
                 Slet
             </Button>
         </div>
-      </div>
     </li>
   );
 };
 
 
-const LotList: React.FC<LotListProps> = ({ lots, onLotSelect, onDeleteLot, onCopyLot, currentUser }) => {
+const LotList: React.FC<LotListProps> = ({ lots, onLotSelect, onDeleteLot, onCopyLot, currentUser, activeFilter, onClearFilter }) => {
   const [isZipping, setIsZipping] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const generateCSVContent = () => {
     const headers = [
-      "Lot #", "Titel", "Firma", "Beskrivelse", "Kategorier", "Auktionstyper", "Stand",
-      "Auktions adresse", "Mindstepris (kr.)",
+      "Lot Nr.", "Titel", "Auktionsoverskrift", "Beskrivelse", "Noter", "Kategorier", "Auktionstyper", "Stand",
+      "Auktionsadresse", "Mindstepris (kr.)", "Forsendelse tilgængelig", "Gaffeltruck til rådighed", "Palleløfter til rådighed",
       "Auktion slutter (dato)", "Auktion slutter (kl.)", "Billeder", "Vurderingskonsulent"
     ];
 
     const escapeCSV = (field: any): string => {
         if (field === null || field === undefined || field === '') {
             return '';
+        }
+        if (typeof field === 'boolean') {
+            return field ? 'Ja' : 'Nej';
         }
         const str = String(field);
         if (str.includes(';') || str.includes('"') || str.includes('\n')) {
@@ -144,11 +208,15 @@ const LotList: React.FC<LotListProps> = ({ lots, onLotSelect, onDeleteLot, onCop
         escapeCSV(lot.title),
         escapeCSV(lot.companyName),
         escapeCSV(lot.description),
+        escapeCSV(lot.notes),
         escapeCSV(lot.category.join(', ')),
         escapeCSV(lot.auctionType.join(', ')),
         escapeCSV(lot.condition),
-        escapeCSV(lot.location),
+        escapeCSV(formatLocation(lot.location)),
         escapeCSV(lot.minimumPrice),
+        escapeCSV(lot.shippingAvailable),
+        escapeCSV(lot.forkliftAvailable),
+        escapeCSV(lot.palletLifterAvailable),
         escapeCSV(lot.auctionEndDate),
         escapeCSV(lot.auctionEndTime),
         escapeCSV(lot.photos.map(p => p.name).join(', ')),
@@ -184,6 +252,7 @@ const LotList: React.FC<LotListProps> = ({ lots, onLotSelect, onDeleteLot, onCop
     }
 
     setIsZipping(true);
+    setIsExportMenuOpen(false);
 
     try {
       const zip = new JSZip();
@@ -246,6 +315,7 @@ const LotList: React.FC<LotListProps> = ({ lots, onLotSelect, onDeleteLot, onCop
     }
 
     setIsGeneratingPDF(true);
+    setIsExportMenuOpen(false);
 
     try {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
@@ -268,14 +338,17 @@ const LotList: React.FC<LotListProps> = ({ lots, onLotSelect, onDeleteLot, onCop
             }
         };
 
-        const addDetailLine = (label: string, value: string, spacingAfter: number = 3) => {
-            if (!value) return;
+        const addDetailLine = (label: string, value: string | boolean, spacingAfter: number = 3) => {
+            if (value === '' || value === undefined || value === null) return;
+            
+            let displayValue = typeof value === 'boolean' ? (value ? 'Ja' : 'Nej') : value;
+
             const lineHeight = doc.getFontSize() * 0.35;
             doc.setFont('helvetica', 'bold');
             const labelWidth = doc.getTextWidth(`${label}: `);
             doc.setFont('helvetica', 'normal');
 
-            const valueLines = doc.splitTextToSize(value, contentWidth - labelWidth);
+            const valueLines = doc.splitTextToSize(displayValue, contentWidth - labelWidth);
             checkPageBreak(valueLines.length * lineHeight);
             
             doc.setFont('helvetica', 'bold');
@@ -288,20 +361,26 @@ const LotList: React.FC<LotListProps> = ({ lots, onLotSelect, onDeleteLot, onCop
         // --- LOT DETAILS ---
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
-        const titleLines = doc.splitTextToSize(`Lot #${lot.lotNumber}: ${lot.title}`, contentWidth);
+        const titleLines = doc.splitTextToSize(`${lot.lotNumber}: ${lot.title}`, contentWidth);
         checkPageBreak(titleLines.length * doc.getFontSize() * 0.35);
         doc.text(titleLines, margin, yPos);
         yPos += titleLines.length * doc.getFontSize() * 0.35 + 5;
         
         doc.setFontSize(11);
-        addDetailLine('Firma', lot.companyName);
-        addDetailLine('Auktions adresse', lot.location);
+        addDetailLine('Auktionsoverskrift', lot.companyName);
+        addDetailLine('Auktionsadresse', formatLocation(lot.location));
         addDetailLine('Auktionstyper', lot.auctionType.join(', '));
         addDetailLine('Kategorier', lot.category.join(', '));
         addDetailLine('Stand', lot.condition);
         addDetailLine('Mindstepris', lot.minimumPrice ? `${Number(lot.minimumPrice).toLocaleString('da-DK')} kr.` : 'Ikke fastsat');
         addDetailLine('Slutter', formatAuctionEnd(lot.auctionEndDate, lot.auctionEndTime));
         addDetailLine('Vurderingskonsulent', lot.appraiser, 6);
+        
+        // Logistics
+        addDetailLine('Forsendelse tilgængelig', lot.shippingAvailable);
+        addDetailLine('Gaffeltruck til rådighed', lot.forkliftAvailable);
+        addDetailLine('Palleløfter til rådighed', lot.palletLifterAvailable, 6);
+        
         addDetailLine('Beskrivelse', lot.description, 6);
 
 
@@ -359,48 +438,108 @@ const LotList: React.FC<LotListProps> = ({ lots, onLotSelect, onDeleteLot, onCop
     }
   };
 
+  const groupedLots = lots.reduce((acc, lot) => {
+    const groupKey = lot.companyName || 'Unavngivet Katalog';
+    if (!acc[groupKey]) {
+        acc[groupKey] = [];
+    }
+    acc[groupKey].push(lot);
+    return acc;
+  }, {} as Record<string, AuctionLot[]>);
+
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-xl font-bold text-gray-800">Registrerede Lots ({lots.length})</h2>
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+        <div className="relative w-full sm:w-auto" ref={exportMenuRef}>
           <Button
-            onClick={handleExportCSV}
-            disabled={isZipping || isGeneratingPDF}
-            className="w-full sm:w-auto flex-1 justify-center px-4 py-2 border border-gray-300 shadow-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#C00000] text-base disabled:bg-gray-200 disabled:cursor-not-allowed"
+            onClick={() => setIsExportMenuOpen(prev => !prev)}
+            className="w-full sm:w-auto justify-center px-4 py-2 border border-gray-300 shadow-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#C00000] text-base flex items-center"
           >
-            Eksporter CSV
+            Eksporter
+            <ChevronDownIcon className="w-5 h-5 ml-2 -mr-1" />
           </Button>
-          <Button
-            onClick={handleExportZIP}
-            disabled={isZipping || isGeneratingPDF}
-            className="w-full sm:w-auto flex-1 justify-center px-4 py-2 border border-gray-300 shadow-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#C00000] text-base disabled:bg-gray-200 disabled:cursor-not-allowed flex items-center"
-          >
-            {isZipping ? <SpinnerIcon className="w-5 h-5 mr-2" /> : null}
-            {isZipping ? 'Pakker ZIP...' : 'Eksporter ZIP'}
-          </Button>
-          <Button
-            onClick={handleExportPDF}
-            disabled={isGeneratingPDF || isZipping}
-            className="w-full sm:w-auto flex-1 justify-center px-4 py-2 border border-gray-300 shadow-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#C00000] text-base disabled:bg-gray-200 disabled:cursor-not-allowed flex items-center"
-          >
-            {isGeneratingPDF ? <SpinnerIcon className="w-5 h-5 mr-2" /> : null}
-            {isGeneratingPDF ? 'Genererer PDF...' : 'Eksporter PDF'}
-          </Button>
+
+          {isExportMenuOpen && (
+            <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-30">
+              <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                <button
+                  onClick={() => { handleExportCSV(); setIsExportMenuOpen(false); }}
+                  disabled={isZipping || isGeneratingPDF}
+                  className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                  role="menuitem"
+                >
+                  Eksporter CSV
+                </button>
+                <button
+                  onClick={handleExportZIP}
+                  disabled={isZipping || isGeneratingPDF}
+                  className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                  role="menuitem"
+                >
+                  {isZipping ? <SpinnerIcon className="w-4 h-4 mr-2 inline" /> : null}
+                  {isZipping ? 'Pakker ZIP...' : 'Eksporter ZIP'}
+                </button>
+                <button
+                  onClick={handleExportPDF}
+                  disabled={isGeneratingPDF || isZipping}
+                  className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                  role="menuitem"
+                >
+                  {isGeneratingPDF ? <SpinnerIcon className="w-4 h-4 mr-2 inline" /> : null}
+                  {isGeneratingPDF ? 'Genererer PDF...' : 'Eksporter PDF'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       
+      {activeFilter && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 animate-fade-in">
+          <p className="text-red-800 text-sm">
+            Filter aktivt: Viser kun lots fra katalog <span className="font-bold">{activeFilter}</span>
+          </p>
+          <Button
+            onClick={onClearFilter}
+            className="flex-shrink-0 flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-full shadow-sm text-white bg-[#C00000] hover:bg-[#A00000] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#C00000]"
+          >
+            <XIcon className="w-4 h-4 mr-1" />
+            Nulstil Filter
+          </Button>
+        </div>
+      )}
+
       {lots.length === 0 ? (
-        <div className="text-center py-8 px-4 border-2 border-dashed border-gray-300 rounded-lg">
-          <p className="font-semibold text-gray-700">Ingen lots er registreret endnu.</p>
-          <p className="text-gray-500 mt-1">Brug formularen nedenfor til at registrere dit første lot.</p>
+        <div className="text-center p-4 border-2 border-dashed border-gray-200 rounded-lg bg-stone-100">
+          {activeFilter ? (
+            <>
+              <p className="font-semibold text-gray-700 text-sm">Ingen lots fundet for dette katalog.</p>
+              <p className="text-gray-500 mt-1 text-sm">Dette katalog har ingen registrerede lots, eller de er blevet slettet.</p>
+            </>
+          ) : (
+            <>
+              <p className="font-semibold text-gray-700 text-sm">Ingen lots er registreret endnu.</p>
+              <p className="text-gray-500 mt-1 text-sm">Brug formularen nedenfor til at registrere dit første lot.</p>
+            </>
+          )}
         </div>
       ) : (
-        <ul className="space-y-4">
-          {lots.map(lot => (
-            <LotCard key={lot.id} lot={lot} onLotSelect={onLotSelect} onDeleteLot={onDeleteLot} onCopyLot={onCopyLot} />
-          ))}
-        </ul>
+        <div className="space-y-8">
+            {Object.entries(groupedLots).map(([groupTitle, lotGroup]) => (
+                <div key={groupTitle}>
+                    <h3 className="text-lg font-semibold text-white mb-2 bg-[#A78969] p-2 rounded-lg">
+                        Katalog: {groupTitle}
+                    </h3>
+                    <ul className="space-y-4">
+                        {Array.isArray(lotGroup) && lotGroup.map(lot => (
+                            <LotCard key={lot.id} lot={lot} onLotSelect={onLotSelect} onDeleteLot={onDeleteLot} onCopyLot={onCopyLot} />
+                        ))}
+                    </ul>
+                </div>
+            ))}
+        </div>
       )}
     </div>
   );

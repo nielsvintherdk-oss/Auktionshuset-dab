@@ -1,3 +1,9 @@
+export interface SerializablePhoto {
+  name: string;
+  type: string;
+  dataUrl: string;
+}
+
 export interface AuctionLot {
   id: string;
   lotNumber: string;
@@ -8,12 +14,30 @@ export interface AuctionLot {
   auctionType: string[];
   condition: string;
   companyName: string;
-  location: string;
+  location: {
+    street: string;
+    postalCode: string;
+    city: string;
+  };
   minimumPrice: number | '';
   auctionEndDate: string;
   auctionEndTime: string;
   appraiser: string;
+  shippingAvailable: boolean;
+  forkliftAvailable: boolean;
+  palletLifterAvailable: boolean;
+  notes?: string;
 }
+
+export interface SerializableRegistrationFormData {
+    formData: Omit<AuctionLot, 'id' | 'lotNumber' | 'auctionType' | 'location' | 'companyName' | 'appraiser' | 'photos'> & { photos: SerializablePhoto[] };
+    auctionInfo: {
+        type: string[];
+        location: { street: string; postalCode: string; city: string; };
+        companyName: string;
+    };
+}
+
 
 export interface Task {
     id: string;

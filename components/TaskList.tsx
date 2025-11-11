@@ -27,8 +27,8 @@ const formatDate = (dateString: string, timeString: string) => {
 
 const TaskCard: React.FC<{ task: Task; isCompleted?: boolean; onComplete?: (taskId: string) => void; }> = ({ task, isCompleted, onComplete }) => {
   return (
-    <li className={`flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 p-4 ${isCompleted ? 'bg-gray-50' : ''}`}>
-      <div className={`flex-shrink-0 rounded-lg p-3 flex flex-col items-center justify-center w-full sm:w-24 text-center ${isCompleted ? 'bg-gray-300 text-gray-600' : 'bg-[#C00000] text-white'}`}>
+    <li className={`bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 p-4 ${isCompleted ? 'opacity-70' : ''}`}>
+       <div className={`flex-shrink-0 rounded-lg p-3 flex flex-col items-center justify-center w-full sm:w-24 text-center ${isCompleted ? 'bg-orange-200 text-gray-600' : 'bg-[#C00000] text-white'}`}>
          <span className="font-bold text-lg">{new Date(task.date).toLocaleDateString('da-DK', { day: '2-digit' })}</span>
          <span className="text-sm uppercase">{new Date(task.date).toLocaleDateString('da-DK', { month: 'short' })}</span>
       </div>
@@ -47,8 +47,9 @@ const TaskCard: React.FC<{ task: Task; isCompleted?: boolean; onComplete?: (task
       {!isCompleted && onComplete && (
         <div className="ml-0 sm:ml-4 self-end sm:self-center flex-shrink-0">
           <Button
+            sound="success"
             onClick={() => onComplete(task.id)}
-            className="flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            className="flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
             title="Markér opgaven som færdig"
           >
             <CheckboxIcon className="w-4 h-4 mr-1.5" />
@@ -66,12 +67,12 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, title = 'Kommende Opgaver', 
     <div className="space-y-4">
       <h2 className="text-xl font-bold text-gray-800">{title}</h2>
       {tasks.length === 0 ? (
-        <div className={`text-center py-4 px-4 border rounded-md ${isCompletedList ? 'border-gray-200 bg-gray-50 text-gray-600' : 'border-[#C00000] bg-[#C00000] text-white'}`}>
+        <div className={`text-center py-6 px-4 border-2 border-dashed rounded-xl ${isCompletedList ? 'border-gray-300 bg-orange-50 text-gray-600' : 'border-gray-300 text-gray-700'}`}>
           <p>Der er ingen {isCompletedList ? 'færdige' : 'kommende'} opgaver.</p>
-          {!isCompletedList && <p className="text-base text-white/80 mt-1">Nye opgaver vil blive vist her, efter du har registreret dem.</p>}
+          {!isCompletedList && <p className="text-base text-gray-500 mt-1">Nye opgaver vil blive vist her, efter du har registreret dem.</p>}
         </div>
       ) : (
-        <ul className="border border-gray-200 rounded-md divide-y divide-gray-200">
+        <ul className="space-y-4">
           {tasks.map((task) => (
             <TaskCard 
               key={task.id} 

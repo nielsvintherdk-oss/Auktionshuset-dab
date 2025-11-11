@@ -1,7 +1,11 @@
-const CACHE_NAME = 'dab-field-tool-v1';
+const CACHE_NAME = 'dab-field-tool-v2';
 const urlsToCache = [
   '/',
   '/index.html',
+  '/manifest.json',
+  '/icon.svg',
+  '/icon-192.png',
+  '/icon-512.png',
   '/index.tsx',
   '/App.tsx',
   '/types.ts',
@@ -18,7 +22,16 @@ const urlsToCache = [
   '/components/icons.tsx',
   '/components/TaskRegistrationForm.tsx',
   '/components/TaskList.tsx',
-  '/components/handbookData.ts'
+  '/components/handbookData.ts',
+  '/components/ImageCropperModal.tsx',
+  '/components/constants.ts',
+  '/components/ContactsPage.tsx',
+  '/components/contactData.ts',
+  '/components/OverviewPage.tsx',
+  '/components/AiToolsPage.tsx',
+  '/components/sounds.ts',
+  '/components/SettingsPage.tsx',
+  '/utils/fileUtils.ts' // Add new utility file
 ];
 
 self.addEventListener('install', event => {
